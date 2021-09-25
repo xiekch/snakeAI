@@ -12,7 +12,8 @@ def manhattanDistance(a, b) -> float:
     return abs(a.X - b.X) + abs(a.Y - b.Y)
 
 
-directions = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
+directions = [(0, 1), (1, 1), (1, 0), (1, -1),
+              (0, -1), (-1, -1), (-1, 0), (-1, 1)]
 end = False
 
 
@@ -29,14 +30,6 @@ class SnakeAI:
         end = False
         mapProperty = gameInfo.MapProperty
         self.gameSize = Vector.fromVector2(mapProperty.Size)
-        avoidWallPoints: List[Vector] = []
-        for i in range(-50, 50):
-            avoidWallPoints.append(Vector(i, 24))
-            avoidWallPoints.append(Vector(i, -25))
-        for j in range(-25, 25):
-            avoidWallPoints.append(Vector(-49, j))
-            avoidWallPoints.append(Vector(48, j))
-        self.avoidWallPoints: List[Vector] = avoidWallPoints
         self.score = 0
         self.position = Vector.fromVector2(worldInfo.mySnake.Nodes[0])
         self.state = self.getState(worldInfo)
@@ -46,6 +39,7 @@ class SnakeAI:
     def onEnded(self, score) -> None:
         print(f"life cycle: ended, score={score}")
         if TRAIN_MODE:
+            print(self.state)
             train_end(self.score)
 
     def onRound(self, roundIndex, gameInfo, worldInfo) -> Tuple[float, float]:
@@ -67,10 +61,13 @@ class SnakeAI:
                 action = select_action(self.state)
                 self.lastAction = self.action
                 self.action = action
-                print(self.isAlive, roundIndex, self.score - self.lastScore)
+                reward = self.score - self.lastScore
+                print(self.isAlive, roundIndex, reward)
                 if roundIndex > 0:
                     if self.isAlive:
-                        train(self.lastState, self.lastAction, torch.tensor(self.state).view(1, -1), self.score - self.lastScore)
+                        if reward != 0:
+                            train(self.lastState, self.lastAction, torch.tensor(
+                                self.state).view(1, -1), reward)
                     else:
                         end = True
                         train(self.lastState, self.lastAction, None, DEAD_REWARD)
@@ -109,29 +106,32 @@ class SnakeAI:
         #     print(donutsState[i], manhattanDistance(
         #         Vector(donutsState[i][0], donutsState[i][1]), self.position))
 
-        # avoid state: the nearest 30 points need to avoid
-        self.avoidWallPoints.sort(key=lambda a: manhattanDistance(a, self.position))
-        for i in self.avoidWallPoints[:AVOID_WALL_POINTS]:
-            # print(f"w {i.X},{i.Y}")
-            state.append(i.X - selfPositionX)
-            state.append(i.Y - selfPositionY)
+        # avoid state: the nearest points need to avoid
+        # Wall
+        state.append(49 - selfPositionX)
+        state.append(selfPositionX + 50)
+        state.append(24 - selfPositionY)
+        state.append(selfPositionY + 25)
 
         otherSnakes = worldInfo.otherSnakes
         avoidSnakePoints = []
         for s in otherSnakes:
             for p in s.Nodes:
                 avoidSnakePoints.append(p)
-        avoidSnakePoints.sort(key=lambda a: manhattanDistance(a, self.position))
+        avoidSnakePoints.sort(
+            key=lambda a: manhattanDistance(a, self.position))
 
         if len(avoidSnakePoints) < AVOID_SNAKE_POINTS:
-            avoidSnakePoints.extend(self.avoidWallPoints[AVOID_WALL_POINTS:AVOID_SNAKE_POINTS + AVOID_WALL_POINTS])
+            avoidSnakePoints.extend(
+                Vector.fromTuple(PADDING_AVOID_DATA) for _ in range(AVOID_SNAKE_POINTS - len(avoidSnakePoints)))
 
         for i in avoidSnakePoints[: AVOID_SNAKE_POINTS]:
             # print(f"s {i.X},{i.Y}")
             state.append(i.X - selfPositionX)
             state.append(i.Y - selfPositionY)
 
-        # print(len(state))
+        print(len(state))
+        # print(state)
 
         return state
 

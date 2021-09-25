@@ -1,5 +1,5 @@
 import os
-from RPCServer import RPCServer
+
 from config import *
 from Vector import Vector
 import torch.nn as nn
@@ -63,8 +63,8 @@ def train(last_state, action, curr_state, reward):
     if reward != 0:
         memory.push(torch.tensor(last_state).view(1, -1), action, curr_state,
                     torch.tensor([reward]))
-    if reward < 0:
-        for i in range(20):
+    if reward == DEAD_REWARD:
+        for i in range(DEAD_TRAIN_REPEAT):
             memory.push(torch.tensor(last_state).view(1, -1), action, curr_state,
                         torch.tensor([reward]))
     i_episode += 1
@@ -136,9 +136,17 @@ def optimize_model(needLast=False):
 
 def train_start():
     global maxScore
-    f = open(SCORE_FILE_NAME)
-    line = f.readline()
-    maxScore = int(line)
+    if os.path.exists(SCORE_FILE_NAME):
+        f = open(SCORE_FILE_NAME)
+        line = f.readline()
+        if len(line) == 0:
+            maxScore = 0
+        else:
+            maxScore = int(line)
+    else:
+        f = open(SCORE_FILE_NAME,'w')
+        f.write('0')
+        maxScore = 0
     f.close()
     if os.path.exists(WEIGHT_FILE_NAME):
         policy_net.load_state_dict(torch.load(WEIGHT_FILE_NAME))
@@ -161,15 +169,3 @@ def train_end(score):
         f = open(SCORE_FILE_NAME, 'w')
         f.write(f'{score}')
         f.close()
-
-
-if __name__ == '__main__':
-    handler = RPCServer()
-    handler.register_function(act)
-    handler.register_function(train)
-    handler.register_function(train_start)
-    handler.register_function(train_end)
-    handler.register_function(policy_net.select_action)
-
-    # Run the server
-    handler.start(RPC_SERVER_ADDRESS)

@@ -1,3 +1,5 @@
+from typing import Tuple
+
 
 class Vector:
     def __init__(self, x, y) -> None:
@@ -10,3 +12,7 @@ class Vector:
     @staticmethod
     def fromVector2(vec):
         return Vector(vec.X, vec.Y)
+
+    @staticmethod
+    def fromTuple(tup: Tuple):
+        return Vector(tup[0], tup[1])
