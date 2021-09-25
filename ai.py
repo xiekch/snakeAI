@@ -35,6 +35,7 @@ class SnakeAI:
         self.state = self.getState(worldInfo)
         self.action = None
         self.init = False
+        self.idle = 0
 
     def onEnded(self, score) -> None:
         print(f"life cycle: ended, score={score}")
@@ -62,12 +63,20 @@ class SnakeAI:
                 self.lastAction = self.action
                 self.action = action
                 reward = self.score - self.lastScore
+                if reward == 0:
+                    self.idle += 1
+                else:
+                    self.idle = 0
                 print(self.isAlive, roundIndex, reward)
                 if roundIndex > 0:
                     if self.isAlive:
                         if reward != 0:
                             train(self.lastState, self.lastAction, torch.tensor(
                                 self.state).view(1, -1), reward)
+                        elif self.idle >= IDLE_THRESHOLD:
+                            print('idle!')
+                            train(self.lastState, self.lastAction, torch.tensor(
+                                self.state).view(1, -1), IDLE_REWARD)
                     else:
                         end = True
                         train(self.lastState, self.lastAction, None, DEAD_REWARD)
@@ -90,7 +99,7 @@ class SnakeAI:
         mySnake = worldInfo.mySnake
 
         # my snake state
-        for n in mySnake.Nodes[1:]:
+        for n in mySnake.Nodes[1:1 + MAX_SNAKE_LEN]:
             nv = [n.X - selfPositionX, n.Y - selfPositionY]
             state.extend(nv)
         if len(state) < MY_SNAKE_STATE_LEN:
@@ -98,7 +107,7 @@ class SnakeAI:
 
         # donuts state
         donutsState = self.parseDonuts(worldInfo)
-        for i in range(len(donutsState)):
+        for i in range(MAX_DONUTS_SIZE):
             state.extend((donutsState[i][0] - selfPositionX,
                           donutsState[i][1] - selfPositionY, donutsState[i][2]))
 
@@ -130,7 +139,9 @@ class SnakeAI:
             state.append(i.X - selfPositionX)
             state.append(i.Y - selfPositionY)
 
-        print(len(state))
+        if len(state) != STATE_LEN:
+            print(len(state), state)
+            raise Exception('wrong state')
         # print(state)
 
         return state

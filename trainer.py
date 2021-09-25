@@ -63,7 +63,12 @@ def train(last_state, action, curr_state, reward):
     if reward != 0:
         memory.push(torch.tensor(last_state).view(1, -1), action, curr_state,
                     torch.tensor([reward]))
+    elif i_episode % ZERO_AWARD_STEP == 0:
+        memory.push(torch.tensor(last_state).view(1, -1), action, curr_state,
+                    torch.tensor([reward]))
+
     if reward == DEAD_REWARD:
+        print('dead reward repeat')
         for i in range(DEAD_TRAIN_REPEAT):
             memory.push(torch.tensor(last_state).view(1, -1), action, curr_state,
                         torch.tensor([reward]))
@@ -77,7 +82,6 @@ def train(last_state, action, curr_state, reward):
     # Move to the next state
 
     # Perform one step of the optimization (on the policy network)
-    print(f"train {i_episode}")
     optimize_model(reward < 0)
     # if done:
     #     episode_durations.append(t + 1)
@@ -91,6 +95,9 @@ def train(last_state, action, curr_state, reward):
 def optimize_model(needLast=False):
     if len(memory) < BATCH_SIZE:
         return
+    global i_episode
+    print(f"train {i_episode}")
+
     transitions = memory.sample(BATCH_SIZE, needLast)
     # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
     # detailed explanation). This converts batch-array of Transitions
@@ -144,7 +151,7 @@ def train_start():
         else:
             maxScore = int(line)
     else:
-        f = open(SCORE_FILE_NAME,'w')
+        f = open(SCORE_FILE_NAME, 'w')
         f.write('0')
         maxScore = 0
     f.close()
@@ -167,5 +174,5 @@ def train_end(score):
         print(f'Save Model! score: {score}')
         torch.save(policy_net.state_dict(), WEIGHT_FILE_NAME)
         f = open(SCORE_FILE_NAME, 'w')
-        f.write(f'{score}')
+        f.write(f'{score - MAX_SCORE_DISCOUNT}')
         f.close()
