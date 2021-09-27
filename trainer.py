@@ -18,7 +18,7 @@ memory = ReplayMemory(MEMEORY_SIZE)
 i_episode = 0
 maxScore = 0
 steps_done = 0
-
+train_loop = 0
 
 def select_action(state):
     global steps_done
@@ -95,8 +95,8 @@ def train(last_state, action, curr_state, reward):
 def optimize_model(needLast=False):
     if len(memory) < BATCH_SIZE:
         return
-    global i_episode
-    print(f"train {i_episode}")
+    global steps_done
+    print(f"train {steps_done}")
 
     transitions = memory.sample(BATCH_SIZE, needLast)
     # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
@@ -167,9 +167,11 @@ def reset_train():
 
 
 def train_end(score):
+    global train_loop
     global maxScore
-    print(f"end {maxScore} {score}")
-    if score > maxScore:
+    train_loop+=1
+    print(f"train end {train_loop} {maxScore} {score}")
+    if score > maxScore or train_loop % TRAIN_LOOP== 0:
         maxScore = score
         print(f'Save Model! score: {score}')
         torch.save(policy_net.state_dict(), WEIGHT_FILE_NAME)

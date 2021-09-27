@@ -3,9 +3,7 @@ from config import *
 from Vector import Vector
 import torch
 from trainer import select_action, train, train_start, train_end, reset_train
-from dqn import DQN
 import logging
-import sys
 
 
 def manhattanDistance(a, b) -> float:
